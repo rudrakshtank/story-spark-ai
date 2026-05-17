@@ -242,6 +242,7 @@ function App() {
             </RootLayout>
           }
         />
+        
         <Route path="/post/:id" element={<PostDetailsComponent />} />
         <Route path="/about-us" element={<AboutUsComponent />} />
         <Route path="/career" element={<CareerComponent />} />
