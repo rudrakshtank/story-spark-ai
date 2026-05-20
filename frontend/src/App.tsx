@@ -59,7 +59,7 @@ const ProtectedRoute = ({
 };
 
 function App() {
-  const [darkMode, setDarkMode] = useState(
+  const [darkMode] = useState(
     localStorage.getItem("theme") === "dark",
   );
 
@@ -301,8 +301,6 @@ function App() {
             />
           }
         />
-
-
         <Route
           path="/post/:id"
           element={
