@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import ExploreViewListComponent from "./post.view.list.component";
 import { useGetMyBookmarksQuery } from "../../redux/apis/bookmark.api";
 import PaginationComponent from "../pagination/pagination.component";
+import { Post } from "../../models/post";
 
 const BookmarksComponent = () => {
   const navigate = useNavigate();
@@ -22,11 +23,11 @@ const BookmarksComponent = () => {
     setSize(pageSize);
   };
 
-  const allPosts = data?.posts || [];
+  const allPosts: Post[] = (data?.posts ?? []) as Post[];
 
   // Implement client-side instant search for bookmarks
   const filteredPosts = allPosts.filter(
-    (story) =>
+    (story: Post) =>
       story &&
       ((story.title?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (story.tag?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
