@@ -36,8 +36,8 @@ const LANGUAGES = [
 
 const StoriesComponent = () => {
   const location = useLocation();
-const navigate = useNavigate();
-const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
+  const navigate = useNavigate();
+  const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
   const [stories, setStories] = useState<IStories[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { data } = useGetProfileInfoQuery(undefined);
@@ -47,73 +47,73 @@ const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
   const [generateFreeModel] = useGenerateFreeModelMutation();
   const [selectedPrompt, setSelectedPrompt] = useState<string>("");
   const [showHelpModal, setShowHelpModal] = useState(false);
-const [selectedGenre, setSelectedGenre] = useState<string>("");
-const [selectedLength, setSelectedLength] = useState<string>("medium");
-const [textareaValue, setTextareaValue] = useState<string>("");
-const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
-const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState<boolean>(false);
-const dropdownRef = useRef<HTMLDivElement>(null);
-const languageDropdownRef = useRef<HTMLDivElement>(null);
-const inputRef = useRef<HTMLTextAreaElement>(null);
-const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
-const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
-  parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
-);
-const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
+  const [selectedLength, setSelectedLength] = useState<string>("medium");
+  const [textareaValue, setTextareaValue] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const languageDropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
+  const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+    parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
+  );
+  const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
 
-useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}, []);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node)
-    ) {
-      setIsDropdownOpen(false);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+      if (
+        languageDropdownRef.current &&
+        !languageDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsLanguageDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsDropdownOpen(false);
+        setIsLanguageDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (location.state && location.state.prompt) {
+      setTextareaValue(location.state.prompt);
+      navigate(location.pathname, { replace: true, state: {} });
     }
-    if (
-      languageDropdownRef.current &&
-      !languageDropdownRef.current.contains(event.target as Node)
-    ) {
-      setIsLanguageDropdownOpen(false);
-    }
-  };
+  }, [location, navigate]);
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") {
-      setIsDropdownOpen(false);
-      setIsLanguageDropdownOpen(false);
-    }
-  };
+  useEffect(() => {
+    setValue("prompt", textareaValue);
+  }, [textareaValue, setValue]);
 
-  document.addEventListener("mousedown", handleClickOutside);
-  document.addEventListener("keydown", handleKeyDown);
-
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-    document.removeEventListener("keydown", handleKeyDown);
-  };
-}, []);
-
-useEffect(() => {
-  if (location.state && location.state.prompt) {
-    setTextareaValue(location.state.prompt);
-    navigate(location.pathname, { replace: true, state: {} });
-  }
-}, [location, navigate]);
-
-useEffect(() => {
-  setValue("prompt", textareaValue);
-}, [textareaValue, setValue]);
-
-useEffect(() => {
-  return () => {
-    activeGenerationRef.current?.abort();
-  };
-}, []);
+  useEffect(() => {
+    return () => {
+      activeGenerationRef.current?.abort();
+    };
+  }, []);
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     if (loading) {
@@ -176,44 +176,52 @@ useEffect(() => {
     }
   };
 
-const handleCancelGeneration = () => {
-  activeGenerationRef.current?.abort();
-  activeGenerationRef.current = null;
-  setLoading(false);
-  toast("Story generation cancelled.");
-};
+  const handleCancelGeneration = () => {
+    activeGenerationRef.current?.abort();
+    activeGenerationRef.current = null;
+    setLoading(false);
+    toast("Story generation cancelled.");
+  };
 
-const handleClearPrompt = () => {
-  setTextareaValue("");
-  setSelectedPrompt("");
-  setValue("prompt", "");
+  const handleClearPrompt = () => {
+    setTextareaValue("");
+    setSelectedPrompt("");
+    setValue("prompt", "");
 
-  if (inputRef.current) {
-    inputRef.current.focus();
-  }
-};
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const handlePublishSuccess = () => {
+    setTextareaValue("");
+    setSelectedPrompt("");
+    setValue("prompt", "");
+    reset();
+  };
 
   const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
   const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
-  
+
   useKeyboardShortcuts({
-  onOpenHelp: () => setShowHelpModal(true),
-  onCloseHelp: () => setShowHelpModal(false),
-  onGenerate: () => {
-    if (inputRef.current) {
-      const form = inputRef.current.closest("form");
-      if (form) form.requestSubmit();
-    }
-  },
-  onPublish: () => {
-    const publishBtn = document.getElementById("publish-story-btn");
-    publishBtn?.click();
-  },
-  focusPrompt: () => {
-    inputRef.current?.focus();
-  },
-  hasStory: stories.length > 0,
-});
+    onOpenHelp: () => setShowHelpModal(true),
+    onCloseHelp: () => setShowHelpModal(false),
+    onGenerate: () => {
+      if (inputRef.current) {
+        const form = inputRef.current.closest("form");
+        if (form) form.requestSubmit();
+      }
+    },
+    onPublish: () => {
+      const publishBtn = document.getElementById("publish-story-btn");
+      publishBtn?.click();
+    },
+    focusPrompt: () => {
+      inputRef.current?.focus();
+    },
+    hasStory: stories.length > 0,
+  });
+
   return (
     <div className="min-h-screen bg-white text-slate-900 animate-gradient-slow transition-colors duration-300 dark:bg-[#0b1329] dark:text-white">
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -553,11 +561,15 @@ const handleClearPrompt = () => {
         </div>
       )}
 
-      {loading && <StoryGeneratingAnimation onCancel={handleCancelGeneration} />}
+{loading && (
+  <StoryGeneratingAnimation onCancel={handleCancelGeneration} />
+)}
       <StoriesViewComponent
         stories={stories}
         isLogin={login}
         setStories={setStories}
+        onPublishSuccess={handlePublishSuccess}
+        isLoading={loading}
       />
       <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
 

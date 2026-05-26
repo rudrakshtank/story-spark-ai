@@ -46,6 +46,8 @@ export interface Post {
   viewsCount: number;
   isPublished: boolean;
   isFeaturedPost: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
   publishedAt: string;
   updatedBy: string;
   attachments: string[];
