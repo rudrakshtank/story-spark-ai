@@ -7,7 +7,6 @@ import {
   Pencil,
   Send,
   GitBranch,
-  MessageSquare,
   CheckCircle2,
   AlertCircle,
   ArrowUpRight,
@@ -53,7 +52,6 @@ const CONTACT_CHANNELS = [
     iconColor: "text-purple-400",
     hoverBorder: "hover:border-purple-500/40",
   },
-
 ];
 
 const FORM_FIELDS = [
@@ -161,7 +159,7 @@ export default function Contact() {
       aria-labelledby="contact-heading"
       className="contact-section relative overflow-hidden bg-[#020617] text-white"
     >
-      {/* ── Deep layered background ── */}
+      {/* ── Layered background ── */}
       <div aria-hidden="true" className="contact-bg-mesh" />
       <div aria-hidden="true" className="contact-orb contact-orb-blue" />
       <div aria-hidden="true" className="contact-orb contact-orb-purple" />
@@ -171,8 +169,8 @@ export default function Contact() {
       {/* ── Page content ── */}
       <div className="contact-wrapper relative z-10 mx-auto w-full max-w-7xl px-5 py-14 sm:px-8 sm:py-18 lg:px-12 lg:py-20 xl:px-16">
 
-        {/* ── Top badge ── */}
-        <div className="contact-col-left mb-10 flex flex-col items-center text-center lg:hidden">
+        {/* Mobile badge */}
+        <div className="mb-10 flex flex-col items-center text-center lg:hidden">
           <span className="contact-badge inline-flex items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300">
             <Zap className="h-3 w-3" aria-hidden="true" />
             Get in Touch
@@ -181,12 +179,10 @@ export default function Contact() {
 
         <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14 xl:gap-20">
 
-          {/* ══════════════════════════════════════
-              LEFT COLUMN
-          ══════════════════════════════════════ */}
+          {/* ── LEFT COLUMN ── */}
           <div className="contact-col-left flex flex-col">
 
-            {/* Badge — desktop only */}
+            {/* Desktop badge */}
             <span className="contact-badge mb-6 hidden w-fit items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300 lg:inline-flex">
               <Zap className="h-3 w-3" aria-hidden="true" />
               Get in Touch
@@ -195,7 +191,7 @@ export default function Contact() {
             {/* Heading */}
             <h1
               id="contact-heading"
-              className="contact-heading font-black leading-[0.9] tracking-tight"
+              className="font-black leading-[0.9] tracking-tight"
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             >
               <span className="block text-[clamp(2.75rem,6vw,4.5rem)] text-white">
@@ -218,9 +214,9 @@ export default function Contact() {
             {/* Stats row */}
             <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
               {[
-                { value: "24h", label: "Response time" },
-                { value: "100%", label: "Read rate" },
-                { value: "Open", label: "Source project" },
+                { value: "24h",   label: "Response time"  },
+                { value: "100%",  label: "Read rate"      },
+                { value: "Open",  label: "Source project" },
               ].map(({ value, label }) => (
                 <div
                   key={label}
@@ -235,48 +231,38 @@ export default function Contact() {
             </div>
 
             {/* Contact channels */}
-            <ul
-              className="mt-7 space-y-2.5 sm:mt-8"
-              aria-label="Contact channels"
-            >
-              {CONTACT_CHANNELS.map(
-                ({ icon: Icon, label, value, href, color, iconColor, hoverBorder }) => (
-                  <li key={label}>
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${label}: ${value}`}
-                      className={`contact-channel-link group flex items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-3.5 backdrop-blur-sm ${hoverBorder}`}
-                    >
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${color} ${iconColor}`}
-                      >
-                        <Icon className="h-4 w-4" aria-hidden="true" />
+            <ul className="mt-7 space-y-2.5 sm:mt-8" aria-label="Contact channels">
+              {CONTACT_CHANNELS.map(({ icon: Icon, label, value, href, color, iconColor, hoverBorder }) => (
+                <li key={label}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${label}: ${value}`}
+                    className={`contact-channel-link group flex items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-3.5 backdrop-blur-sm ${hoverBorder}`}
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${color} ${iconColor}`}>
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[0.65rem] font-bold uppercase tracking-widest text-slate-500">
+                        {label}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[0.65rem] font-bold uppercase tracking-widest text-slate-500">
-                          {label}
-                        </span>
-                        <span className="block truncate text-sm font-medium text-slate-300 group-hover:text-white">
-                          {value}
-                        </span>
+                      <span className="block truncate text-sm font-medium text-slate-300 group-hover:text-white">
+                        {value}
                       </span>
-                      <ArrowUpRight
-                        className="h-3.5 w-3.5 shrink-0 text-slate-600 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-slate-400"
-                        aria-hidden="true"
-                      />
-                    </a>
-                  </li>
-                ),
-              )}
+                    </span>
+                    <ArrowUpRight
+                      className="h-3.5 w-3.5 shrink-0 text-slate-600 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-slate-400"
+                      aria-hidden="true"
+                    />
+                  </a>
+                </li>
+              ))}
             </ul>
 
             {/* Illustration */}
-            <div
-              aria-hidden="true"
-              className="contact-illustration relative mt-10 hidden items-end lg:flex"
-            >
+            <div aria-hidden="true" className="contact-illustration relative mt-10 hidden items-end lg:flex">
               <div className="contact-illustration-glow" />
               <img
                 src={storybook}
@@ -286,18 +272,12 @@ export default function Contact() {
             </div>
           </div>
 
-          {/* ══════════════════════════════════════
-              RIGHT COLUMN — FORM
-          ══════════════════════════════════════ */}
+          {/* ── RIGHT COLUMN — FORM ── */}
           <div className="contact-col-right w-full lg:sticky lg:top-24">
             <div className="contact-form-shell">
-              {/* Outer glow ring */}
               <div aria-hidden="true" className="contact-form-glow-ring" />
 
-              {/* Glass card */}
               <div className="contact-form-card">
-
-                {/* Card inner top accent line */}
                 <div aria-hidden="true" className="contact-form-top-line" />
 
                 {/* Form header */}
@@ -317,35 +297,33 @@ export default function Contact() {
                   className="space-y-4"
                 >
                   {/* Text inputs */}
-                  {FORM_FIELDS.map(
-                    ({ id, name, type, label, placeholder, icon: Icon, autoComplete }) => (
-                      <div key={id} className="contact-field group">
-                        <label
-                          htmlFor={id}
-                          className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-widest text-slate-500"
-                        >
-                          {label}
-                        </label>
-                        <div className="relative">
-                          <Icon
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600 transition-colors duration-200 group-focus-within:text-purple-400"
-                          />
-                          <input
-                            id={id}
-                            type={type}
-                            name={name}
-                            placeholder={placeholder}
-                            value={formData[name]}
-                            onChange={changeHandler}
-                            required
-                            autoComplete={autoComplete}
-                            className="contact-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder:text-slate-600 sm:h-[3.125rem] sm:text-base"
-                          />
-                        </div>
+                  {FORM_FIELDS.map(({ id, name, type, label, placeholder, icon: Icon, autoComplete }) => (
+                    <div key={id} className="contact-field group">
+                      <label
+                        htmlFor={id}
+                        className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-widest text-slate-500"
+                      >
+                        {label}
+                      </label>
+                      <div className="relative">
+                        <Icon
+                          aria-hidden="true"
+                          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600 transition-colors duration-200 group-focus-within:text-purple-400"
+                        />
+                        <input
+                          id={id}
+                          type={type}
+                          name={name}
+                          placeholder={placeholder}
+                          value={formData[name]}
+                          onChange={changeHandler}
+                          required
+                          autoComplete={autoComplete}
+                          className="contact-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder:text-slate-600 sm:h-[3.125rem] sm:text-base"
+                        />
                       </div>
-                    ),
-                  )}
+                    </div>
+                  ))}
 
                   {/* Message textarea */}
                   <div className="contact-field group">
@@ -381,24 +359,15 @@ export default function Contact() {
                     aria-label={loading ? "Sending message…" : "Send message"}
                     className="contact-submit-btn group relative mt-1 flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl text-sm font-bold text-white sm:h-[3.125rem] sm:text-base"
                   >
-                    {/* Gradient fill */}
-                    <span
-                      aria-hidden="true"
-                      className="contact-btn-gradient absolute inset-0"
-                    />
-                    {/* Shimmer sweep */}
+                    <span aria-hidden="true" className="contact-btn-gradient absolute inset-0" />
                     <span
                       aria-hidden="true"
                       className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent transition-transform duration-700 group-hover:translate-x-full"
                     />
-                    {/* Content */}
                     <span className="relative flex items-center gap-2.5">
                       {loading ? (
                         <>
-                          <span
-                            aria-hidden="true"
-                            className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-                          />
+                          <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                           <span>Sending…</span>
                         </>
                       ) : (
@@ -420,10 +389,7 @@ export default function Contact() {
                       aria-live="polite"
                       className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-4 py-3.5"
                     >
-                      <CheckCircle2
-                        className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
-                        aria-hidden="true"
-                      />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
                       <p className="text-sm font-medium text-emerald-400">
                         Message sent — we'll get back to you within 24 hours.
                       </p>
@@ -437,10 +403,7 @@ export default function Contact() {
                       aria-live="assertive"
                       className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.07] px-4 py-3.5"
                     >
-                      <AlertCircle
-                        className="mt-0.5 h-4 w-4 shrink-0 text-red-400"
-                        aria-hidden="true"
-                      />
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
                       <p className="text-sm font-medium text-red-400">{error}</p>
                     </div>
                   )}
@@ -448,6 +411,7 @@ export default function Contact() {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>

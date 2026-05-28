@@ -2,9 +2,9 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Mail, Github, MessageSquare } from "lucide-react";
 
 const CONTACT_ITEMS = [
-  { icon: Mail, text: "ronichandrasarkar@gmail.com" },
-  { icon: Github, text: "github.com/ronisarkarexe/story-spark-ai" },
-  { icon: MessageSquare, text: "Open-source collaboration welcome" },
+  { icon: Mail,          text: "ronichandrasarkar@gmail.com"              },
+  { icon: Github,        text: "github.com/ronisarkarexe/story-spark-ai"  },
+  { icon: MessageSquare, text: "Open-source collaboration welcome"         },
 ];
 
 const ContactUs = () => {
@@ -56,7 +56,7 @@ const ContactUs = () => {
             </ul>
           </div>
 
-          {/* CTA */}
+          {/* CTAs */}
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               to="/contact-us"
@@ -72,6 +72,7 @@ const ContactUs = () => {
               ← Back to Home
             </Link>
           </div>
+
         </div>
       </div>
     </div>
