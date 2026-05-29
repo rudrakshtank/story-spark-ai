@@ -14,8 +14,7 @@ const ReactionSchema: Schema<IReaction> = new Schema<IReaction, ReactionModel>(
   { timestamps: true }
 );
 
-// Add compound unique index to prevent duplicate reactions by the same user on a post
-ReactionSchema.index({ postId: 1, userId: 1 }, { unique: true });
+ReactionSchema.index({ postId: 1, userId: 1, type: 1 }, { unique: true });
 
 export const Reaction = model<IReaction, ReactionModel>(
   "Reaction",
