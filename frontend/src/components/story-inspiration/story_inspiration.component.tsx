@@ -70,7 +70,7 @@ const StoryInspirationComponent: React.FC = () => {
           
           {/* Search Input Box */}
           <div className="relative rounded-2xl bg-white/[0.02] border border-white/10 p-1 flex items-center focus-within:border-indigo-500/50 focus-within:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all duration-300">
-            <span className="pl-4 text-gray-500">
+            <span className="absolute left-4 text-gray-500 pointer-events-none">
               <i className="fas fa-search text-lg"></i>
             </span>
             <input
@@ -78,8 +78,7 @@ const StoryInspirationComponent: React.FC = () => {
               placeholder="Search classic tales, authors, summary keywords, or themes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-none outline-none focus:ring-0 px-3 py-3 text-gray-200 placeholder-gray-500 text-base"
-            />
+              className="w-full bg-transparent border-none outline-none focus:ring-0 pl-10 pr-3 py-3 text-gray-200 placeholder-gray-500 text-base"            />
             {searchQuery.length > 0 && (
               <button
                 onClick={() => setSearchQuery("")}
