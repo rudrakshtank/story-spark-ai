@@ -5,9 +5,10 @@ import toast, { Toaster } from "react-hot-toast";
 import { useCreatePostMutation, useDeletePostMutation } from "../../redux/apis/post.api";
 import { useGetProfileInfoQuery } from "../../redux/apis/user.api";
 import jsPDF from "jspdf";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
 import StoryWorldMap from "../story-map/StoryWorldMap";
-import StoryRemix from "../remix/StoryRemix";
-import StoryTranslator from "../translate/StoryTranslator";
 import BookmarkButton from "../BookmarkButton";
 import logo from "../../assets/logoNew.png";
 import StoryGeneratingAnimation from "../loading/story-generating-animation.component";
@@ -16,10 +17,16 @@ import { useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setStory } from "../../redux/slices/storySlice";
 import ContinueStoryButton from "../story/ContinueStoryButton";
+import StoryTradingCard from "../cards/StoryTradingCard";
+import CardCollection from "../cards/CardCollection";
+import StoryCoverImage from "./StoryCoverImage";
+
+ImageFallback
 import {
   useGenerateAlternateEndingsMutation,
   useGenerateFreeAlternateEndingsMutation,
 } from "../../redux/apis/ai.model.api";
+import { useUpdatePostMutation } from "../../redux/apis/post.api";
 
 // ─── StoryCoverImage ────────────────────────────────────────────────────────
 
@@ -53,6 +60,7 @@ function getInitials(title?: string): string {
 interface StoryCoverImageProps {
   title?: string;
   tag?: string;
+  imageUrl?: string;
   size?: "full" | "thumb";
   className?: string;
   style?: React.CSSProperties;
@@ -61,12 +69,17 @@ interface StoryCoverImageProps {
 const StoryCoverImage: React.FC<StoryCoverImageProps> = ({
   title = "",
   tag = "default",
+  imageUrl = "",
   size = "full",
   className = "",
   style = {},
 }) => {
   const theme = getGenreTheme(tag);
   const initials = getInitials(title);
+
+  // Fallback high-fidelity asset image link requested in issue #1246 description
+  const defaultPlaceholder = "https://images.unsplash.com/photo-11455390582262-044cdead277a?w=600&auto=format&fit=crop&q=80";
+  const finalImageSrc = imageUrl && imageUrl.trim() !== "" && !imageUrl.includes("placeholder.com") ? imageUrl : defaultPlaceholder;
 
   if (size === "thumb") {
     return (
@@ -103,7 +116,9 @@ const StoryCoverImage: React.FC<StoryCoverImageProps> = ({
         minHeight: "192px",
         position: "relative",
         overflow: "hidden",
-        background: `linear-gradient(${theme.gradient})`,
+        backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.4)), url(${finalImageSrc})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
         borderRadius: "inherit",
         ...style,
       }}
@@ -141,7 +156,7 @@ const StoryCoverImage: React.FC<StoryCoverImageProps> = ({
       {/* Genre pill */}
       <div style={{
         position: "absolute", top: "14px", left: "14px",
-        background: "rgba(0,0,0,0.28)",
+        background: "rgba(0,0,0,0.4)",
         backdropFilter: "blur(6px)",
         color: "#fff",
         fontSize: "0.65rem",
@@ -156,37 +171,39 @@ const StoryCoverImage: React.FC<StoryCoverImageProps> = ({
         {tag}
       </div>
 
-      {/* Large faded initials centred */}
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      {/* Large faded initials centered if background asset image fails to show up */}
+      {!imageUrl && (
         <div style={{
-          fontSize: "5rem",
-          fontWeight: 900,
-          color: "rgba(255,255,255,0.12)",
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
-          userSelect: "none",
-          pointerEvents: "none",
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {initials}
+          <div style={{
+            fontSize: "5rem",
+            fontWeight: 900,
+            color: "rgba(255,255,255,0.12)",
+            letterSpacing: "-0.04em",
+            lineHeight: 1,
+            userSelect: "none",
+            pointerEvents: "none",
+          }}>
+            {initials}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Title at bottom */}
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0,
-        background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
-        padding: "32px 14px 12px",
+        background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+        padding: "40px 14px 14px",
       }}>
         <p style={{
           margin: 0,
           color: "#fff",
-          fontSize: "0.9rem",
+          fontSize: "0.95rem",
           fontWeight: 700,
           lineHeight: 1.3,
-          textShadow: "0 1px 6px rgba(0,0,0,0.5)",
+          textShadow: "0 2px 8px rgba(0,0,0,0.8)",
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
@@ -201,6 +218,7 @@ const StoryCoverImage: React.FC<StoryCoverImageProps> = ({
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
+import ImageFallback from "../ImageFallback";
 export interface IStories {
   uuid: string;
   title: string;
@@ -208,289 +226,17 @@ export interface IStories {
   tag: string;
   imageURL: string;
   language?: string;
-  emotions?: string[];
-  genre?: string;
-  enhancedPrompt?: string;
+import React from "react";
+import { Post } from "../../models/post";
+import { useNavigate } from "react-router-dom";
+
+interface IRelatedStoriesComponentProps {
+  posts: Post[],
+  currentPostId: string;
 }
 
-interface IPost extends IStories {
-  topic: ITopicData[];
-  isPublished?: boolean;
-}
-
-interface StoriesComponentProps {
-  stories: IStories[];
-  isLogin: boolean;
-  setStories: (stories: IStories[]) => void;
-  onPublishSuccess?: () => void;
-  isLoading?: boolean;
-}
-
-type StorySentenceSegment = {
-  id: string;
-  text: string;
-  startWordIndex: number;
-  endWordIndex: number;
-};
-
-const buildSentenceSegments = (content: string): StorySentenceSegment[] => {
-  if (!content.trim()) return [];
-  const sentenceMatches = content.match(/[^.!?]+[.!?]*\s*/g) ?? [content];
-  const segments: StorySentenceSegment[] = [];
-  let wordCursor = 0;
-  sentenceMatches.forEach((sentence, index) => {
-    const trimmedSentence = sentence.trim();
-    if (!trimmedSentence) return;
-    const wordsInSentence = sentence.match(/\S+/g)?.length ?? 0;
-    const startWordIndex = wordCursor;
-    const endWordIndex = wordsInSentence > 0 ? wordCursor + wordsInSentence - 1 : wordCursor;
-    segments.push({ id: `${index}-${startWordIndex}-${endWordIndex}`, text: sentence, startWordIndex, endWordIndex });
-    wordCursor += wordsInSentence;
-  });
-  return segments;
-};
-
-const escapeXml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-
-const getSafeFileName = (title: string, extension: string): string => {
-  const safeTitle = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${safeTitle || "story"}.${extension}`;
-};
-
-const crcTable = (() => {
-  const table = new Uint32Array(256);
-  for (let i = 0; i < 256; i += 1) {
-    let c = i;
-    for (let j = 0; j < 8; j += 1) {
-      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    }
-    table[i] = c >>> 0;
-  }
-  return table;
-})();
-
-const getCrc32 = (bytes: Uint8Array): number => {
-  let crc = 0xffffffff;
-  bytes.forEach((byte) => {
-    crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  });
-  return (crc ^ 0xffffffff) >>> 0;
-};
-
-const getDosDateTime = (date = new Date()): { dosDate: number; dosTime: number } => {
-  const year = Math.max(date.getFullYear(), 1980);
-  const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
-  const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
-  return { dosDate, dosTime };
-};
-
-const writeUint16 = (target: number[], value: number) => {
-  target.push(value & 0xff, (value >>> 8) & 0xff);
-};
-
-const writeUint32 = (target: number[], value: number) => {
-  target.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
-};
-
-const createZipBlob = (files: { name: string; content: string }[]): Blob => {
-  const encoder = new TextEncoder();
-  const localParts: Uint8Array[] = [];
-  const centralParts: Uint8Array[] = [];
-  let offset = 0;
-  const { dosDate, dosTime } = getDosDateTime();
-
-  files.forEach((file) => {
-    const nameBytes = encoder.encode(file.name);
-    const contentBytes = encoder.encode(file.content);
-    const crc32 = getCrc32(contentBytes);
-
-    const localHeader: number[] = [];
-    writeUint32(localHeader, 0x04034b50);
-    writeUint16(localHeader, 20);
-    writeUint16(localHeader, 0);
-    writeUint16(localHeader, 0);
-    writeUint16(localHeader, dosTime);
-    writeUint16(localHeader, dosDate);
-    writeUint32(localHeader, crc32);
-    writeUint32(localHeader, contentBytes.length);
-    writeUint32(localHeader, contentBytes.length);
-    writeUint16(localHeader, nameBytes.length);
-    writeUint16(localHeader, 0);
-
-    localParts.push(new Uint8Array(localHeader), nameBytes, contentBytes);
-
-    const centralHeader: number[] = [];
-    writeUint32(centralHeader, 0x02014b50);
-    writeUint16(centralHeader, 20);
-    writeUint16(centralHeader, 20);
-    writeUint16(centralHeader, 0);
-    writeUint16(centralHeader, 0);
-    writeUint16(centralHeader, dosTime);
-    writeUint16(centralHeader, dosDate);
-    writeUint32(centralHeader, crc32);
-    writeUint32(centralHeader, contentBytes.length);
-    writeUint32(centralHeader, contentBytes.length);
-    writeUint16(centralHeader, nameBytes.length);
-    writeUint16(centralHeader, 0);
-    writeUint16(centralHeader, 0);
-    writeUint16(centralHeader, 0);
-    writeUint16(centralHeader, 0);
-    writeUint32(centralHeader, 0);
-    writeUint32(centralHeader, offset);
-
-    centralParts.push(new Uint8Array(centralHeader), nameBytes);
-    offset += localHeader.length + nameBytes.length + contentBytes.length;
-  });
-
-  const centralDirectorySize = centralParts.reduce((size, part) => size + part.length, 0);
-  const endRecord: number[] = [];
-  writeUint32(endRecord, 0x06054b50);
-  writeUint16(endRecord, 0);
-  writeUint16(endRecord, 0);
-  writeUint16(endRecord, files.length);
-  writeUint16(endRecord, files.length);
-  writeUint32(endRecord, centralDirectorySize);
-  writeUint32(endRecord, offset);
-  writeUint16(endRecord, 0);
-
-  return new Blob([...localParts, ...centralParts, new Uint8Array(endRecord)], {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  });
-};
-
-const createDocxBlob = ({
-  title,
-  content,
-  tag,
-  author,
-}: {
-  title: string;
-  content: string;
-  tag: string;
-  author: string;
-}): Blob => {
-  const createdAt = new Date().toISOString();
-  const paragraphs = content
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map(
-      (paragraph) =>
-        `<w:p><w:pPr><w:spacing w:after="180" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(paragraph)}</w:t></w:r></w:p>`
-    )
-    .join("");
-
-  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    <w:p>
-      <w:pPr><w:pStyle w:val="Title"/></w:pPr>
-      <w:r><w:t>${escapeXml(title)}</w:t></w:r>
-    </w:p>
-    <w:p>
-      <w:pPr><w:spacing w:after="240"/></w:pPr>
-      <w:r><w:rPr><w:b/><w:color w:val="6366F1"/></w:rPr><w:t>${escapeXml(tag.toUpperCase())}</w:t></w:r>
-    </w:p>
-    ${paragraphs}
-    <w:sectPr>
-      <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
-    </w:sectPr>
-  </w:body>
-</w:document>`;
-
-  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
-    <w:name w:val="Normal"/>
-    <w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
-  </w:style>
-  <w:style w:type="paragraph" w:styleId="Title">
-    <w:name w:val="Title"/>
-    <w:rPr><w:b/><w:sz w:val="44"/><w:szCs w:val="44"/><w:color w:val="1E293B"/></w:rPr>
-    <w:pPr><w:spacing w:after="240"/></w:pPr>
-  </w:style>
-</w:styles>`;
-
-  return createZipBlob([
-    {
-      name: "[Content_Types].xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
-  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-</Types>`,
-    },
-    {
-      name: "_rels/.rels",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
-  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
-</Relationships>`,
-    },
-    {
-      name: "word/_rels/document.xml.rels",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`,
-    },
-    { name: "word/document.xml", content: documentXml },
-    { name: "word/styles.xml", content: stylesXml },
-    {
-      name: "docProps/core.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>${escapeXml(title)}</dc:title>
-  <dc:creator>${escapeXml(author)}</dc:creator>
-  <dc:subject>${escapeXml(tag)}</dc:subject>
-  <cp:keywords>StorySparkAI,story,export</cp:keywords>
-  <dcterms:created xsi:type="dcterms:W3CDTF">${createdAt}</dcterms:created>
-  <dcterms:modified xsi:type="dcterms:W3CDTF">${createdAt}</dcterms:modified>
-</cp:coreProperties>`,
-    },
-    {
-      name: "docProps/app.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>StorySparkAI</Application>
-</Properties>`,
-    },
-  ]);
-};
-
-const downloadBlob = (blob: Blob, fileName: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", fileName);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
-  stories,
-  isLogin,
-  setStories,
-  isLoading,
-  onPublishSuccess,
+const RelatedStoriesComponent: React.FC<IRelatedStoriesComponentProps> = ({
+  posts, currentPostId,
 }) => {
   const location = useLocation();
   const audioPlayerRef = useRef<AudioPlayerHandle>(null);
@@ -505,7 +251,9 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
   const [showWorldMap, setShowWorldMap] = useState<boolean>(false);
   const [showRemix, setShowRemix] = useState<boolean>(false);
   const [showTranslator, setShowTranslator] = useState<boolean>(false);
+  const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
   const [createPost] = useCreatePostMutation();
+  const [updatePost] = useUpdatePostMutation();
   const [deletePost] = useDeletePostMutation();
   const { data: profile } = useGetProfileInfoQuery(undefined, { skip: !isLogin });
   const lastSavedContentRef = useRef<string>("");
@@ -607,19 +355,42 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
   }, [stories, dispatch]);
 
   useEffect(() => {
+    if (!selectedStory?.uuid) return;
+    try {
+      const storedDraftId = sessionStorage.getItem(`story_spark_autosave_draft_id:${selectedStory.uuid}`);
+      if (storedDraftId) savedPostIdRef.current = storedDraftId;
+    } catch (error) {
+      console.warn("Failed to read autosave draft id from sessionStorage", error);
+    }
+  }, [selectedStory?.uuid]);
+
+  useEffect(() => {
     const autoSaveStory = async () => {
       if (!isLogin || !selectedStory) return;
       if (selectedStory.content === lastSavedContentRef.current) return;
-      if (hasSavedSessionRef.current) return;
       if (isSavingRef.current) return;
       isSavingRef.current = true;
       const post: IPost = { ...selectedStory, topic: selectTopics, isPublished: false };
       try {
-        const result = await createPost(post).unwrap();
-        if (result && result.data && result.data._id) savedPostIdRef.current = result.data._id;
+        if (savedPostIdRef.current) {
+          await updatePost({ id: savedPostIdRef.current, data: post as unknown as Record<string, unknown> }).unwrap();
+        } else {
+          const result = await createPost(post).unwrap();
+          const createdId = result?.data?._id;
+          if (createdId) {
+            savedPostIdRef.current = createdId;
+            try {
+              sessionStorage.setItem(`story_spark_autosave_draft_id:${selectedStory.uuid}`, createdId);
+            } catch (storageError) {
+              console.warn("Failed to persist autosave draft id to sessionStorage", storageError);
+            }
+          }
+        }
         lastSavedContentRef.current = selectedStory.content;
-        hasSavedSessionRef.current = true;
-        toast.success("Story auto-saved!");
+        if (!hasSavedSessionRef.current) {
+          hasSavedSessionRef.current = true;
+          toast.success("Story auto-saved!");
+        }
       } catch (error) {
         console.error("Auto-save failed", error);
       } finally {
@@ -628,7 +399,7 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
     };
     const timer = setTimeout(() => { autoSaveStory(); }, 1000);
     return () => clearTimeout(timer);
-  }, [selectedStory, selectedStory?.content, isLogin, selectTopics, createPost]);
+  }, [selectedStory, selectedStory?.content, isLogin, selectTopics, createPost, updatePost]);
 
   const handelStorySelection = (story: IStories) => { setSelectedStory(story); };
 
@@ -840,13 +611,19 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
 
   return (
     <div className="mt-16 px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto pb-10">
-      <style>{`
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-      `}</style>
-
+      <style>
+        
+        {`
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+          }
+        `}
+      </style>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in-up">
-        {/* ── Left column ── */}
         <div className="col-span-1 lg:col-span-8 flex flex-col">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div>
@@ -860,57 +637,81 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
                 <span className="inline-flex items-center rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/50 py-1 px-3 text-xs font-semibold">
                   🌐 {selectedStory.language || "English"}
                 </span>
-                {selectedStory.emotions && selectedStory.emotions.length > 0 && (
-                  <span className="inline-flex items-center rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 py-1 px-3 text-xs font-semibold">
-                    😊 {selectedStory.emotions.join(", ")}
-                  </span>
-                )}
               </div>
             </div>
-
-            {/* ── SPOT 1: Story selector thumbnails (circular) ── */}
             <div className="flex justify-start sm:justify-end">
               <div className="flex -space-x-5">
-                {stories && stories.length > 0 && stories.map((story) => (
-                  <button
-                    key={story.uuid}
-                    className={`relative w-16 h-16 rounded-full border-2 ${
-                      selectedStory?.uuid === story.uuid ? "border-blue-500 scale-110" : "border-white"
-                    } hover:scale-110 transition-transform duration-200 focus:outline-none overflow-hidden`}
-                    onClick={() => handelStorySelection(story)}
-                    title={story.title}
-                  >
-                    <StoryCoverImage
-                      title={story.title}
-                      tag={story.tag}
-                      size="thumb"
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  </button>
-                ))}
+                {stories && stories.length > 0 && (
+                  stories.map((story) => (
+                    <button
+                      key={story.uuid}
+                      className={`relative w-16 h-16 rounded-full border-2 ${
+                        selectedStory?.uuid === story.uuid
+                          ? "border-blue-500 scale-110"
+                          : "border-white"
+                      } hover:scale-110 transition-transform duration-200 focus:outline-none`}
+                      onClick={() => handelStorySelection(story)}
+                    >
+                      <ImageFallback
+                        src={story.imageURL}
+                        alt={story.title}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>
 
-          {/* Story content card */}
           <div className="bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
             <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
+            
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h3 className="text-xl font-bold text-slate-200 relative z-10">Generated Story</h3>
-              <div className="flex flex-wrap items-center gap-2 relative z-10">
+              <div className="flex flex-wrap items-center gap-2 relative z-50">
                 <button type="button" className="rounded-lg px-4 py-2 bg-slate-700 text-slate-200 font-semibold cursor-pointer hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleCopyStory} disabled={!selectedStory}>
                   {isCopied ? "✓ Copied" : "📋 Copy"}
                 </button>
-                <button type="button" className="rounded-lg px-4 py-2 bg-purple-700 text-slate-200 font-semibold cursor-pointer hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportPDF} disabled={!selectedStory}>
-                  📄 Export PDF
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 bg-indigo-700 text-slate-200 font-semibold cursor-pointer hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    disabled={!selectedStory}
+                  >
+                    ⬇️ Export <i className="fa-solid fa-chevron-down text-xs ml-1"></i>
+                  </button>
+                  <div className={`absolute top-full mt-2 left-0 w-48 bg-slate-800/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col transition-all duration-300 origin-top-left ${showExportMenu ? "opacity-100 scale-100 translate-y-0 pointer-events-auto" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"}`}>
+                    <button type="button" className="w-full text-left px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3 border-b border-slate-700/50" onClick={() => { handleExportPDF(); setShowExportMenu(false); }}>
+                      📄 PDF
+                    </button>
+                    <button type="button" className="w-full text-left px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3 border-b border-slate-700/50" onClick={() => { handleExportDOCX(); setShowExportMenu(false); }}>
+                      📘 Word (DOCX)
+                    </button>
+                    <button type="button" className="w-full text-left px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3 border-b border-slate-700/50" onClick={() => { handleExportMarkdown(); setShowExportMenu(false); }}>
+                      Ⓜ️ Markdown
+                    </button>
+                    <button type="button" className="w-full text-left px-4 py-3 text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3" onClick={() => { handleExportTXT(); setShowExportMenu(false); }}>
+                      📝 Plain Text
+                    </button>
+                  </div>
+                </div>
+                <button type="button" className="rounded-lg px-4 py-2 bg-violet-700 text-slate-200 font-semibold cursor-pointer hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowWorldMap(true)} disabled={!selectedStory}>
+                  🗺️ World Map
                 </button>
-                <button type="button" className="rounded-lg px-4 py-2 bg-teal-700 text-slate-200 font-semibold cursor-pointer hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportDOCX} disabled={!selectedStory}>
-                  📝 Export DOCX
+                <button type="button" className="rounded-lg px-4 py-2 bg-fuchsia-700 text-slate-200 font-semibold cursor-pointer hover:bg-fuchsia-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowRemix(true)} disabled={!selectedStory}>
+                  🔀 Remix
                 </button>
-                <button type="button" className="rounded-lg px-4 py-2 bg-indigo-700 text-slate-200 font-semibold cursor-pointer hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportMarkdown} disabled={!selectedStory}>
-                  ⬇️ Export Markdown
+                <button type="button" className="rounded-lg px-4 py-2 bg-sky-700 text-slate-200 font-semibold cursor-pointer hover:bg-sky-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportDOCX} disabled={!selectedStory}>
+                  📝 Export Word
+                </button>
+                <button type="button" className="rounded-lg px-4 py-2 bg-slate-700 text-slate-200 font-semibold cursor-pointer hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportTXT} disabled={!selectedStory}>
+                  📄 Export TXT
+                </button>
+                <button type="button" className="rounded-lg px-4 py-2 bg-amber-700 text-slate-200 font-semibold cursor-pointer hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleExportEPUB} disabled={!selectedStory}>
+                  📚 Export EPUB
                 </button>
                 <button type="button" className="rounded-lg px-4 py-2 bg-violet-700 text-slate-200 font-semibold cursor-pointer hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowWorldMap(true)} disabled={!selectedStory}>
                   🗺️ World Map
@@ -920,22 +721,75 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg px-4 py-2 bg-emerald-700 text-slate-200 font-semibold cursor-pointer hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setShowTranslator(true)}
+                  className="rounded-lg px-4 py-2 bg-violet-700 text-slate-200 font-semibold cursor-pointer hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowWorldMap(true)}
                   disabled={!selectedStory}
                 >
-                  🌍 Translate
+                  🗺️ World Map
                 </button>
                 <button
                   type="button"
                   id="publish-story-btn"
-                  className={`rounded-lg px-5 py-2 font-semibold flex items-center space-x-2 cursor-pointer bg-blue-600 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${loading ? "" : "hover:bg-blue-500 hover:shadow-lg active:scale-95"}`}
+                  className={`rounded-lg px-5 py-2 font-semibold flex items-center space-x-2 cursor-pointer bg-blue-600 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    loading ? "" : "hover:bg-blue-500 hover:shadow-lg active:scale-95"
+                  }`}
                   onClick={handelPublishStory}
                   disabled={loading || !selectedStory}
                 >
                   {loading ? "Publishing..." : "Publish"}
                 </button>
               </div>
+            </div>
+            <div id="story-content" className="prose prose-invert max-w-none text-slate-300 leading-relaxed tracking-wide relative z-10">
+              <p className="break-words whitespace-pre-wrap">
+                {sentenceSegments.length > 0 ? (
+                  sentenceSegments.map((segment: StorySentenceSegment) => {
+                    const isActiveSentence =
+                      isNarrationActive &&
+                      narrationWordIndex >= segment.startWordIndex &&
+                      narrationWordIndex <= segment.endWordIndex;
+
+                    return (
+                      <span
+                        key={segment.id}
+                        className={
+                          isActiveSentence
+                            ? "rounded-md bg-indigo-500/20 px-0.5 py-0.5 text-indigo-100 ring-1 ring-indigo-400/30"
+                            : undefined
+                        }
+                      >
+                        {segment.text}
+                      </span>
+                    );
+                  })
+                ) : (
+                  selectedStory.content
+                )}
+              </p>
+            </div>
+
+            <div className="relative z-10 mt-6">
+              <AudioPlayer
+                ref={audioPlayerRef}
+                text={selectedStory.content}
+                title={selectedStory.title}
+                onWordIndexChange={setNarrationWordIndex}
+                onPlaybackStateChange={setNarrationState}
+    <div className="grid grid-cols-2 gap-6">
+      {filteredPosts.length > 0 ? (
+        filteredPosts.map((post: Post) => (
+          <div
+            onClick={() => navigate(`/post/${post._id}`)}
+            key={post._id}
+            className="cursor-pointer bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:border-blue-500/40 hover:bg-slate-800/80 transition-all duration-300 overflow-hidden group flex flex-col h-full"
+          >
+            <div className="relative overflow-hidden">
+              <img
+                src={post.imageURL}
+                alt="Related Story"
+                className="w-full h-40 object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-60 pointer-events-none"></div>
             </div>
 
             {selectedStory.enhancedPrompt && (
@@ -952,139 +806,80 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
                 {sentenceSegments.length > 0 ? (
                   sentenceSegments.map((segment: StorySentenceSegment) => {
                     const isActiveSentence = isNarrationActive && narrationWordIndex >= segment.startWordIndex && narrationWordIndex <= segment.endWordIndex;
+                    
+                    // Split the sentence text into word tokens, preserving whitespace
+                    const rawParts = segment.text.split(/(\s+)/);
+                    let wordOffset = 0;
+
                     return (
-                      <span key={segment.id} className={isActiveSentence ? "rounded-md bg-indigo-500/20 px-0.5 py-0.5 text-indigo-100 ring-1 ring-indigo-400/30" : undefined}>
-                        {segment.text}
+                      <span
+                        key={segment.id}
+                        className={isActiveSentence ? "transition-colors duration-300 text-slate-100" : undefined}
+                      >
+                        {rawParts.map((part, partIdx) => {
+                          if (part === "") return null;
+                          if (/^\s+$/.test(part)) {
+                            return part;
+                          }
+
+                          const absoluteWordIndex = segment.startWordIndex + wordOffset;
+                          wordOffset++;
+
+                          const isActiveWord = isNarrationActive && narrationWordIndex === absoluteWordIndex;
+
+                          if (isActiveWord) {
+                            return (
+                              <span
+                                key={partIdx}
+                                className="bg-indigo-500/20 text-indigo-300 rounded px-0.5 transition-all duration-150"
+                              >
+                                {part}
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <span key={partIdx}>
+                              {part}
+                            </span>
+                          );
+                        })}
                       </span>
                     );
                   })
-                ) : selectedStory.content}
-              </p>
-            </div>
-
-            <div className="relative z-10 mt-6">
-              <AudioPlayer ref={audioPlayerRef} text={selectedStory.content} title={selectedStory.title} onWordIndexChange={setNarrationWordIndex} onPlaybackStateChange={setNarrationState} />
-            </div>
-            <div className="mt-6"><ContinueStoryButton /></div>
-          </div>
-
-          {/* Topics + Alternate Endings */}
-          <div className="mt-7">
-            <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl p-6 mb-8">
-              <h3 className="text-lg font-bold text-slate-200 mb-4">Select Topics</h3>
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <input
-                  type="text"
-                  value={newTopicTitle}
-                  onChange={(event) => setNewTopicTitle(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); handleAddTopic(); } }}
-                  placeholder="Add related topic"
-                  className="flex-1 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                />
-                <button type="button" className="rounded-lg px-4 py-2 bg-blue-600 text-white font-semibold cursor-pointer hover:bg-blue-500 transition-colors" onClick={handleAddTopic}>
-                  Add Topic
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedStory ? (
-                  topics.map((topic, index) => (
-                    <span key={index} className={`inline-flex items-center gap-2 px-4 py-1.5 ${topic.className} rounded-full text-sm font-medium transition-transform hover:scale-105 shadow-sm`}>
-                      <button type="button" className="cursor-pointer" onClick={() => handleTopicClick(index)}>
-                        {topic.selected ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-plus"></i>}{" "}{topic.title}
-                      </button>
-                      <button type="button" className="cursor-pointer border-l border-current/30 pl-2 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => handleRemoveTopic(index)} disabled={topics.length <= 2} aria-label={`Remove ${topic.title}`}>
-                        <i className="fa-solid fa-xmark"></i>
-                      </button>
-                    </span>
-                  ))
                 ) : (
-                  <p className="text-gray-400">No topics available. Please generate a story first.</p>
-                )}
-              </div>
-            </div>
+                  (() => {
+                    const rawParts = selectedStory.content.split(/(\s+)/);
+                    let wordOffset = 0;
+                    return rawParts.map((part, partIdx) => {
+                      if (part === "") return null;
+                      if (/^\s+$/.test(part)) {
+                        return part;
+                      }
 
-            {selectedStory && (
-              <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl p-6 mt-8 relative overflow-hidden">
-                <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-200">Alternate Endings</h3>
-                    <p className="text-xs text-slate-400 mt-1">Explore alternate narrative styles for your story context.</p>
-                  </div>
-                  {selectedStory.content !== originalStoryContent[selectedStory.uuid] && (
-                    <button type="button" onClick={handleResetEnding} className="rounded-lg px-4 py-2 bg-red-950/40 hover:bg-red-900/60 text-red-200 border border-red-700/50 font-semibold text-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5">
-                      <i className="fa-solid fa-rotate-left"></i> Reset to Original
-                    </button>
-                  )}
-                </div>
+                      const absoluteWordIndex = wordOffset;
+                      wordOffset++;
 
-                {isGeneratingEndings ? (
-                  <div className="flex flex-col items-center justify-center py-10">
-                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-500 mb-4"></div>
-                    <p className="text-slate-300 text-sm font-medium animate-pulse">Generating alternate endings...</p>
-                  </div>
-                ) : endingsCache[selectedStory.uuid]?.length > 0 ? (
-                  <div>
-                    <div className="flex border-b border-slate-700/50 mb-6 overflow-x-auto whitespace-nowrap scrollbar-none">
-                      {["Happy Ending", "Dark Ending", "Plot Twist Ending", "Open Ending", "Cliffhanger Ending"].map((name) => {
-                        const endingData = (endingsCache[selectedStory.uuid] || []).find((e) => e.style === name);
-                        const isApplied = endingData && selectedStory.content === endingData.fullStory;
+                      const isActiveWord = isNarrationActive && narrationWordIndex === absoluteWordIndex;
+
+                      if (isActiveWord) {
                         return (
-                          <button key={name} type="button" onClick={() => setActiveEndingTab(name)}
-                            className={`px-5 py-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all cursor-pointer ${activeEndingTab === name ? "border-purple-500 text-purple-400 bg-purple-500/5" : "border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-700"}`}>
-                            <span>{name}</span>
-                            {isApplied && <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>}
-                          </button>
+                          <span
+                            key={partIdx}
+                            className="bg-indigo-500/20 text-indigo-300 rounded px-0.5 transition-all duration-150"
+                          >
+                            {part}
+                          </span>
                         );
-                      })}
-                    </div>
-                    {(() => {
-                      const currentEndingData = (endingsCache[selectedStory.uuid] || []).find((e) => e.style === activeEndingTab);
-                      if (!currentEndingData) return null;
-                      const isCurrentlyApplied = selectedStory.content === currentEndingData.fullStory;
+                      }
+
                       return (
-                        <div className="bg-slate-900/40 rounded-xl p-6 border border-slate-700/30">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-lg font-bold text-slate-200">{activeEndingTab} Suggestion</h4>
-                            <div>
-                              {isCurrentlyApplied ? (
-                                <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5">
-                                  <i className="fa-solid fa-check"></i> Applied to Story
-                                </span>
-                              ) : (
-                                <button type="button" onClick={() => handleApplyEnding(currentEndingData)} className="rounded-lg px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-sm transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-purple-500/20">
-                                  Apply to Story
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-4">
-                            <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800 leading-relaxed text-slate-300 text-sm md:text-base italic shadow-inner whitespace-pre-wrap">
-                              <p>{currentEndingData.ending}</p>
-                            </div>
-                            <details className="group border border-slate-800 rounded-lg overflow-hidden bg-slate-950/20">
-                              <summary className="list-none flex items-center justify-between p-3 text-xs font-bold text-slate-400 hover:text-slate-200 cursor-pointer select-none">
-                                <span>PREVIEW FULL STORY WITH THIS ENDING</span>
-                                <span className="transition-transform duration-200 group-open:rotate-180">▼</span>
-                              </summary>
-                              <div className="p-4 border-t border-slate-800/80 text-xs text-slate-400 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap">
-                                {currentEndingData.fullStory}
-                              </div>
-                            </details>
-                          </div>
-                        </div>
+                        <span key={partIdx}>
+                          {part}
+                        </span>
                       );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 bg-slate-900/20 border border-dashed border-slate-700/40 rounded-xl">
-                    <button type="button" onClick={handleGenerateAlternateEndings} className="rounded-xl px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/30 flex items-center gap-2 cursor-pointer">
-                      Generate Alternate Endings
-                    </button>
-                    <p className="text-xs text-slate-400 mt-3 text-center max-w-sm px-4 leading-relaxed">
-                      Uses the story context to produce 5 unique ending variations (Happy, Dark, Plot Twist, Open, Cliffhanger) for comparison.
-                    </p>
-                  </div>
+                    });
+                  })()
                 )}
               </div>
             )}
@@ -1101,10 +896,11 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
           <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden group">
             <div className="relative flex flex-col rounded-lg">
               <div className="relative m-3 overflow-hidden text-white rounded-xl" style={{ height: "192px" }}>
-                {/* ── SPOT 2: Rectangular cover image ── */}
+                {/* ── Updated Cover Image with dynamic imageURL support ── */}
                 <StoryCoverImage
                   title={selectedStory.title}
                   tag={selectedStory.tag}
+                  imageUrl={selectedStory.imageURL}
                   className="transition-transform duration-500 group-hover:scale-105"
                   style={{ width: "100%", height: "100%", borderRadius: "0.75rem" }}
                 />
@@ -1130,23 +926,12 @@ const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {showRemix && selectedStory && (
-        <StoryRemix
-          story={selectedStory}
-          isLogin={isLogin}
-          onRemixComplete={(remixedStory) => { setStories([remixedStory, ...stories]); setSelectedStory(remixedStory); setShowRemix(false); }}
-          onClose={() => setShowRemix(false)}
-        />
+        ))
+      ) : (
+        <p className="text-center text-slate-500 col-span-2 py-8">No related stories found.</p>
       )}
-      {showWorldMap && selectedStory && (
-        <StoryWorldMap story={selectedStory.content} title={selectedStory.title} onClose={() => setShowWorldMap(false)} />
-      )}
-      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 };
 
-export default StoriesViewComponent;
+export default RelatedStoriesComponent;
