@@ -18,6 +18,7 @@ interface SSInputProps<T extends FieldValues> {
   validation?: RegisterOptions<T>;
   error?: FieldError;
   autoComplete?: string;
+  autoFocus?: boolean;
 }
 
 const SSInput = <T extends FieldValues>({
@@ -30,17 +31,20 @@ const SSInput = <T extends FieldValues>({
   validation,
   error,
   autoComplete,
+  autoFocus
 }: SSInputProps<T>) => {
   const [showPassword, setShowPassword] = useState(false);
 
-const inputType =
-  type === "password"
-    ? showPassword
-      ? "text"
-      : "password"
-    : type;
+
+
+  const inputType =
+
+    type === "password" ? (showPassword ? "text" : "password") : type;
+
+
+
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0" className="w-full">
       <label
         htmlFor={name}
         className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -48,24 +52,41 @@ const inputType =
         {label}
       </label>
 
-      <div className="relative w-full">
+      <div className="relative w-full w-full min-w-0">
         {icon && (
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
             <i className={icon}></i>
           </span>
         )}
 
+       <input
+  type={inputType}
+  id={name}
+  className={`w-full box-border pl-8 pr-10 py-1.5 text-base text-gray-900 dark:text-gray-200 bg-white dark:bg-slate-800 border-0 sm:text-sm ${
+    error
+      ? "outline-red-500"
+      : "outline-gray-800 focus:outline-indigo-600"
+  }`}
+  placeholder={placeholder}
+  autoComplete={autoComplete}
+  {...register(name, validation)}
+/>
+
+
         <input
           id={name}
-          type={inputType}
-          id={name}
-          className={`w-full pl-10 pr-10 py-2 text-base text-gray-900 dark:text-gray-200 bg-white dark:bg-slate-800 border rounded-md sm:text-sm transition-all focus:outline-none ${
-          error
-          ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-red-500"
-          : "border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:focus:border-blue-500"
-          }`}          placeholder={placeholder}
-          autoComplete={autoComplete}
-          {...register(name, validation)}
+  type={inputType}
+  id={name}
+  className={`block w-full max-w-full box-border pl-8 ${
+    type === "password" ? "pr-0" : "pr-0"
+  } py-1.5 text-base text-gray-900 dark:text-gray-200 bg-white dark:bg-slate-800 border rounded-md sm:text-sm ${
+    error
+      ? "border-red-500"
+      : "border-gray-300 focus:outline-indigo-600"
+  }`}
+  placeholder={placeholder}
+  autoComplete={autoComplete}
+  {...register(name, validation)}
           className={`
             w-full
             min-w-0
@@ -103,15 +124,19 @@ const inputType =
 
             focus:outline-none
           `}
-        />
+/>
 
         {type === "password" && (
   <button
     type="button"
-    onClick={() => setShowPassword((prev) => !prev)}
-    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+    onClick={() => setShowPassword(!showPassword)}
+
+    className="absolute inset-y-0 right-2 flex items-center text-gray-500"
+
+    
     aria-label={showPassword ? "Hide password" : "Show password"}
     title={showPassword ? "Hide password" : "Show password"}
+
   >
     <i
               className={showPassword ? "fi fi-rr-eye" : "fi fi-rr-eye-crossed"}
@@ -119,10 +144,11 @@ const inputType =
   </button>
 )}
       </div>
-
-      <div className="min-h-[20px] mt-1">
-        {error && <p className="text-xs text-red-500">{error.message}</p>}
-      </div>
+      {error && (
+        <p className="text-red-400 text-sm mt-1 w-full break-words overflow-hidden">
+        {error.message}
+        </p>
+    )}
     </div>
   );
 };
