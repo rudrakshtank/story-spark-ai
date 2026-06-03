@@ -13,6 +13,11 @@ export interface UserProfile {
   bio?: string;
 }
 
+export interface WritingGoals {
+  dailyWordCount: number;
+  weeklyWordCount: number;
+}
+
 export interface User {
   _id: string;
   email: string;
@@ -22,17 +27,31 @@ export interface User {
   status: string;
   subscriptionType: string;
   postsCount: number;
-  followers: string[];
-  following: string[];
+  writingGoals?: {
+    dailyWordCount: number;
+    weeklyWordCount: number;
+  };
+  followers: {
+    _id: string;
+    username: string;
+    profilePicture: string;
+  }[];
+
+  following: {
+    _id: string;
+    username: string;
+    profilePicture: string;
+  }[];
   requestsThisMonth: number;
   lastRequestDate: string | null;
   posts: string[];
   isApplyForWriter: boolean;
+  // Optional writing goals for analytics and user settings
+  writingGoals?: {
+    dailyWordCount?: number;
+    weeklyWordCount?: number;
+  };
   createdAt: string;
   updatedAt: string;
   profile: UserProfile;
-  writingGoals?: {
-  dailyWordCount: number;
-  weeklyWordCount: number;
-};
 }
