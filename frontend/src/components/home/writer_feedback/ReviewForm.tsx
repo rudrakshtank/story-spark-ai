@@ -143,7 +143,7 @@ const ReviewForm = () => {
             </div>
           )}
 
-          <div className="space-y-6">
+          <div className="space-y-5 max-w-lg mx-auto">
             {/* Name */}
             <div>
               <label
@@ -224,7 +224,7 @@ const ReviewForm = () => {
                 className="w-full max-w-lg resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
 
-              <div className="mt-1 flex items-center justify-between max-w-lg">
+              <div className="mt-2 flex items-center justify-between max-w-lg">
                 {errors.feedback ? (
                   <p className="flex items-center gap-1 text-xs text-red-400">
                     <span>⚠</span>
@@ -252,9 +252,11 @@ const ReviewForm = () => {
                 <span className="text-red-400">*</span>
               </label>
 
-              <StarRating rating={rating} setRating={setRating} />
+              <div className="mt-1">
+                <StarRating rating={rating} setRating={setRating} />
+              </div>
 
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-1.5 text-xs text-gray-500">
                 Select a rating based on your overall experience.
               </p>
 
@@ -266,7 +268,7 @@ const ReviewForm = () => {
               )}
             </div>
 
-            <div className="flex justify-center mt-6">
+            <div className="flex justify-center pt-2 mt-4">
               <button
                 type="button"
                 onClick={handleSubmit}
