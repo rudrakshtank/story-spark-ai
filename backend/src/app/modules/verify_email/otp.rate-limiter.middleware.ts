@@ -1,53 +1,155 @@
 import { Request, Response, NextFunction } from "express";
-import ApiError from "../../../errors/api_error";
-import httpStatus from "http-status";
 
-interface RateLimitStore {
-  [key: string]: { attempts: number; resetTime: number };
+export class AppError extends Error {
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+
+  constructor(message: string, statusCode: number = 500) {
+    super(message);
+    this.name = "AppError";
+    this.statusCode = statusCode;
+    this.isOperational = true; 
+    Error.captureStackTrace(this, this.constructor);
+  }
 }
 
-const rateLimitStore: RateLimitStore = {};
-const MAX_ATTEMPTS = 5;
-const WINDOW_TIME = 15 * 60 * 1000; // 15 minutes
+interface MongoError extends Error {
+  code?: number;
+  keyValue?: Record<string, unknown>;
+}
 
-/**
- * Rate limiting middleware for OTP verification
- * Limits to 5 attempts per email per 15 minutes
- */
-export const otpRateLimiter = (
+interface MongoValidationError extends Error {
+  name: "ValidationError";
+  errors: Record<string, { message: string }>;
+}
+
+interface MongoCastError extends Error {
+  name: "CastError";
+  path?: string;
+  value?: unknown;
+}
+
+function isMongoError(err: unknown): err is MongoError {
+  return err instanceof Error && "code" in err;
+}
+
+function isValidationError(err: unknown): err is MongoValidationError {
+  return err instanceof Error && err.name === "ValidationError";
+}
+
+function isCastError(err: unknown): err is MongoCastError {
+  return err instanceof Error && err.name === "CastError";
+}
+
+function isJsonWebTokenError(err: unknown): err is Error {
+  return (
+    err instanceof Error &&
+    (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError")
+  );
+}
+
+export const globalErrorHandler = (
+  err: unknown,
   req: Request,
   res: Response,
-  next: NextFunction
-) => {
-  const email = req.body?.email;
+  
+  _next: NextFunction
+): void => {
+  const isProd = process.env.NODE_ENV === "production";
 
-  if (!email) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Email is required");
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      ...(isProd ? {} : { stack: err.stack }),
+    });
+    return;
   }
 
-  const now = Date.now();
-  const key = `otp_${email}`;
+  if (isMongoError(err) && err.code === 11000) {
+    const duplicateField = err.keyValue
+      ? Object.keys(err.keyValue)[0]
+      : "field";
 
-  // Clean up old entries
-  if (rateLimitStore[key] && now > rateLimitStore[key].resetTime) {
-    delete rateLimitStore[key];
+    res.status(409).json({
+      success: false,
+      error: `An account with this ${duplicateField} already exists. Please use a different ${duplicateField} or log in.`,
+    });
+    return;
+  }
+  
+  if (isValidationError(err)) {
+    const messages = Object.values(err.errors)
+      .map((e) => e.message)
+      .join(" ");
+
+    res.status(400).json({
+      success: false,
+      error: `Validation failed: ${messages}`,
+    });
+    return;
+  }
+  if (isCastError(err)) {
+    res.status(400).json({
+      success: false,
+      error: `Invalid value "${err.value}" for field "${err.path}".`,
+    });
+    return;
   }
 
-  // Check if limit exceeded
-  if (rateLimitStore[key]) {
-    if (rateLimitStore[key].attempts >= MAX_ATTEMPTS) {
-      throw new ApiError(
-        httpStatus.TOO_MANY_REQUESTS,
-        `Too many OTP verification attempts. Please try again after 15 minutes.`
-      );
-    }
-    rateLimitStore[key].attempts += 1;
-  } else {
-    rateLimitStore[key] = {
-      attempts: 1,
-      resetTime: now + WINDOW_TIME,
-    };
+  if (isJsonWebTokenError(err)) {
+    const message =
+      (err as Error).name === "TokenExpiredError"
+        ? "Your session has expired. Please log in again."
+        : "Invalid authentication token. Please log in again.";
+
+    res.status(401).json({ success: false, error: message });
+    return;
   }
 
-  next();
+  if (
+    err instanceof Error &&
+    "statusCode" in err &&
+    typeof (err as Record<string, unknown>).statusCode === "number"
+  ) {
+    const razorErr = err as Error & { statusCode: number; error?: { description?: string } };
+    const clientMessage = isProd
+      ? "A payment processing error occurred. Please try again."
+      : razorErr.message;
+
+    res.status(razorErr.statusCode).json({
+      success: false,
+      error: clientMessage,
+    });
+    return;
+  }
+
+  console.error("[Unhandled Error]", {
+    method: req.method,
+    path: req.path,
+    error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.status(500).json({
+    success: false,
+    error: isProd
+      ? "An unexpected error occurred. Please try again later."
+      : err instanceof Error
+        ? err.message
+        : "Unknown error",
+    ...(isProd ? {} : { stack: err instanceof Error ? err.stack : undefined }),
+  });
+};
+
+export const notFoundHandler = (
+  req: Request,
+  res: Response,
+  _next: NextFunction
+): void => {
+  res.status(404).json({
+    success: false,
+    error: `Route ${req.method} ${req.originalUrl} not found.`,
+  });
 };
