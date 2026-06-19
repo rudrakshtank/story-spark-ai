@@ -12,13 +12,7 @@ import cookieParser from "cookie-parser";
 import config from "./config";
 import { Routers } from "./router";
 import globalErrorHandler from "./app/middleware/global.error.handler";
-<<<<<<< feature/weekly-story-leaderboard
-import { User } from "./app/modules/user/user.model";
-import { NewsletterSubscriber } from "./app/modules/newsletter/newsletter.model";
-import storyRoutes from "./routes/story.routes";
 import leaderboardRoute from "./routes/leaderboard.route";
-=======
->>>>>>> main
 
 const app: Application = express();
 app.set("trust proxy", 1);
@@ -41,9 +35,6 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
-        if (process.env.NODE_ENV === "production") {
-          return callback(new Error("Origin header required"));
-        }
         return callback(null, true);
       }
 
