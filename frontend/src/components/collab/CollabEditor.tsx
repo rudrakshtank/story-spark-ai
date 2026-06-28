@@ -7,6 +7,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { io, Socket } from 'socket.io-client';
 import { Awareness } from 'y-protocols/awareness';
 import { resolveSocketUrl } from '../../helpers/socket-url';
+import { Awareness } from 'y-protocols/awareness';
 
 interface CollabEditorProps {
   storyId: string;
